@@ -1,12 +1,12 @@
 // ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors, sort_child_properties_last
-
 import 'package:expense_tracker_v1/components/expense_tile.dart';
 import 'package:expense_tracker_v1/pages/statistic_page.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-
 import '../models/expense_data.dart';
 import '../models/expense_item.dart';
+import '../models/expense_summary.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,6 +18,46 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final newExpenseNameController = TextEditingController();
   final newExpenseAmountController = TextEditingController();
+  final newExpenseCentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    //prepare the data
+
+    Provider.of<ExpenseData>(context, listen: false).prepareData();
+  }
+
+  //calculate week total
+  String calculateWeekTotal(
+    ExpenseData value,
+    String sunday,
+    String monday,
+    String tuesday,
+    String wednesday,
+    String thursday,
+    String friday,
+    String saturday,
+  ) {
+    List<double> values = [
+      value.calculateDailyExpenseSummary()[sunday] ?? 0,
+      value.calculateDailyExpenseSummary()[monday] ?? 0,
+      value.calculateDailyExpenseSummary()[tuesday] ?? 0,
+      value.calculateDailyExpenseSummary()[wednesday] ?? 0,
+      value.calculateDailyExpenseSummary()[thursday] ?? 0,
+      value.calculateDailyExpenseSummary()[friday] ?? 0,
+      value.calculateDailyExpenseSummary()[saturday] ?? 0,
+    ];
+
+    //sort from largest to lowest
+    double total = 0;
+
+    for (int i = 0; i < values.length; i++) {
+      total += values[i];
+    }
+    return total.toStringAsFixed(2);
+  }
 
   void addNewExpense() {
     showDialog(
@@ -30,10 +70,32 @@ class _HomePageState extends State<HomePage> {
             //EXPENSE NAME
             TextField(
               controller: newExpenseNameController,
+              decoration: InputDecoration(
+                hintText: "EXPENSE NAME",
+              ),
             ),
             //EXPENSE AMOUNT
-            TextField(
-              controller: newExpenseAmountController,
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: newExpenseAmountController,
+                    decoration: InputDecoration(
+                      hintText: "PHP",
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: newExpenseCentController,
+                    decoration: InputDecoration(
+                      hintText: "CENTS",
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -85,14 +147,22 @@ class _HomePageState extends State<HomePage> {
 
   //FOR SAVE
   void save() {
-    ExpenseItem newExpense = ExpenseItem(
-      name: newExpenseNameController.text,
-      amount: newExpenseAmountController.text,
-      dateTime: DateTime.now(),
-    );
-    Provider.of<ExpenseData>(context, listen: false).addNewExpense(newExpense);
-    Navigator.pop(context);
-    clear();
+    if (newExpenseNameController.text.isNotEmpty &&
+        newExpenseAmountController.text.isNotEmpty &&
+        newExpenseCentController.text.isNotEmpty) {
+      String amount =
+          '${newExpenseAmountController.text}.${newExpenseCentController.text}';
+      //ORIGINAL CODE IN CASE IT GOES SOUTH
+      ExpenseItem newExpense = ExpenseItem(
+        name: newExpenseNameController.text,
+        amount: amount,
+        dateTime: DateTime.now(),
+      );
+      Provider.of<ExpenseData>(context, listen: false)
+          .addNewExpense(newExpense);
+      Navigator.pop(context);
+      clear();
+    }
   }
 
   //FOR CANCEL
@@ -104,9 +174,17 @@ class _HomePageState extends State<HomePage> {
   void clear() {
     newExpenseNameController.clear();
     newExpenseAmountController.clear();
+    newExpenseCentController.clear();
   }
 
-  @override
+  void deleteExpense(ExpenseItem expense) {
+    Provider.of<ExpenseData>(context, listen: false).deleteExpense(expense);
+  }
+
+  final ExpenseSummary expenseSummary = ExpenseSummary(
+    startOfWeek: DateTime.now(),
+  );
+
   Widget build(BuildContext context) {
     return Consumer<ExpenseData>(
       builder: (context, value, child) => Scaffold(
@@ -135,59 +213,65 @@ class _HomePageState extends State<HomePage> {
         body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+              padding: const EdgeInsets.fromLTRB(0, 70, 0, 0),
               child: Container(
-                height: 100,
-                width: 350,
+                height: 122,
+                width: 370,
                 decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                      bottomLeft: Radius.circular(20),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      offset: Offset(7, 7),
                     ),
-                    border: Border.all(width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        offset: Offset(7, 7),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "EXPENSE",
+                        style: TextStyle(fontSize: 30),
                       ),
-                    ]),
+                      Text(
+                        "TRACKER",
+                        style: TextStyle(
+                            fontSize: 30, fontWeight: FontWeight.bold),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(Icons.bar_chart),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => StatisticPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'STATISTICS',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 10, 5, 0),
-                  child: Icon(Icons.bar_chart),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 10, 20, 0),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => StatisticPage(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'SEE STATISTICS',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(
-              height: 10,
-            ),
-            Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 0, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 60, 0, 0),
                   child: Text(
                     'EXPENSES',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
@@ -195,6 +279,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+            //ORIGINAL CODE IN CASE IT GOES SOUTH
             Expanded(
               child: ListView.builder(
                 itemCount: value.getAllExpenseList().length,
@@ -202,6 +287,9 @@ class _HomePageState extends State<HomePage> {
                   name: value.getAllExpenseList()[index].name,
                   dateTime: value.getAllExpenseList()[index].dateTime,
                   amount: value.getAllExpenseList()[index].amount,
+                  deleteTapped: (p0) => deleteExpense(
+                    value.getAllExpenseList()[index],
+                  ),
                 ),
               ),
             ),

@@ -1,9 +1,9 @@
 import 'package:expense_tracker_v1/models/date_time_helper.dart';
+import 'package:expense_tracker_v1/models/hive_database.dart';
 import 'package:flutter/material.dart';
-
 import 'expense_item.dart';
 
-class ExpenseData extends ChangeNotifier{
+class ExpenseData extends ChangeNotifier {
   // list of ALL EXPENSES
   List<ExpenseItem> overallExpenseList = [];
 
@@ -12,16 +12,26 @@ class ExpenseData extends ChangeNotifier{
     return overallExpenseList;
   }
 
+//prepare the data to display
+  final db = HiveDatabase();
+  void prepareData() {
+    if (db.readData().isNotEmpty) {
+      overallExpenseList = db.readData();
+    }
+  }
+
   // ADD NEW EXPENSE
   void addNewExpense(ExpenseItem newExpense) {
     overallExpenseList.add(newExpense);
-
     notifyListeners();
+    db.saveData(overallExpenseList);
   }
 
   //DELETE EXPENSE
-  void deleteExoebse(ExpenseItem expense) {
+  void deleteExpense(ExpenseItem expense) {
     overallExpenseList.remove(expense);
+    notifyListeners();
+    db.saveData(overallExpenseList);
   }
 
   //GET WEEKDAY (MON TUES ETC) FROM A DATE TIME OBJECT
@@ -89,24 +99,25 @@ class ExpenseData extends ChangeNotifier{
   ]
   */
 
-  Map<String, double> calculateDailyExpenseSummary(){
+  Map<String, double> calculateDailyExpenseSummary() {
     Map<String, double> dailyExpenseSummary = {
       // date (yyyymmdd) : amountTotalforDAY
     };
 
-    for (var expense in overallExpenseList){
+    for (var expense in overallExpenseList) {
       String date = convertDateTimeToString(expense.dateTime);
       double amount = double.parse(expense.amount);
 
-      if (dailyExpenseSummary.containsKey(date)){
+      if (dailyExpenseSummary.containsKey(date)) {
         double currentAmount = dailyExpenseSummary[date]!;
         currentAmount += amount;
         dailyExpenseSummary[date] = currentAmount;
-      }
-      else{
-        dailyExpenseSummary.addAll({date:amount});
+      } else {
+        dailyExpenseSummary.addAll({date: amount});
       }
     }
     return dailyExpenseSummary;
   }
+
+  void setOverallExpenseList(List<ExpenseItem> expenses) {}
 }

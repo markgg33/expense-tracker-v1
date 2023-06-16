@@ -2,11 +2,25 @@
 
 import 'package:expense_tracker_v1/models/expense_data.dart';
 import 'package:expense_tracker_v1/pages/home_page.dart';
+//import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+void main() async {
+
+  //Initialize Firebase
+  /*WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();*/
+
+  //Initialize Hive here
+
+  await Hive.initFlutter();
+
+  //Opening DB
+  await Hive.openBox("expense_database");
+
   runApp(const MyApp());
 }
 

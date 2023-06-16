@@ -36,6 +36,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   provider:
+  fl_chart: ^0.60.0
+  hive: 
+  hive_flutter:
+  flutter_slidable: ^1.2.0
+
+  # FIREBASE DATABASE DEPENDENCY
+
+  #firebase_core: ^2.14.0
+  #firebase_database: ^10.0.2
+  
 
 dev_dependencies:
   flutter_test:
